@@ -1,0 +1,51 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+	mavenCentral()
+	ivy { url= "./lib" }
+}
+
+configurations {
+	enhanceEbean
+}
+
+dependencies {
+	compile("org.avaje.ebeanorm:avaje-ebeanorm:6.16.5")
+	enhanceEbean("org.avaje.ebeanorm:avaje-ebeanorm-agent:4.9.2")
+	compile("org.postgresql:postgresql:9.4-1202-jdbc41")
+	testCompile 'junit:junit:4.12'
+}
+
+task wrapper(type: Wrapper) {
+	gradleVersion = '2.11'
+}
+
+def ebeanClassSource = 'build/classes'
+def enhanceEbean(classSource, component, ebeanPackages) {
+	logger.lifecycle("Enhancing Ebean ${component} class files at " + file(classSource))
+
+	ant.taskdef(
+		name: 'enhanceEbean' 
+		, classname: "com.avaje.ebean.enhance.ant.AntEnhanceTask"
+		, classpath: configurations.enhanceEbean.asPath
+	)
+
+	ant.enhanceEbean(
+		classSource: classSource
+		, packages: ebeanPackages.join(', ')
+		, transformArgs: "debug=2"
+	)
+
+	logger.lifecycle("Enhancing Ebean ${component} class files is finished.")
+}
+
+compileJava.doLast {
+	def ebeanPackages = []
+	ebeanPackages << "main"
+
+	enhanceEbean('build/classes', 'main', ebeanPackages)
+}
